@@ -2,7 +2,7 @@ FILES=Makefile Questions/questions.pdf mandelbrot.c mandelbrot_main.c ppm.c ppm.
 ARCHIVE=Lab1.zip
 
 # Suggested list of features to tune to measure performance
-MAXITER=256
+MAXITER=512
 WIDTH=1000
 HEIGHT=700
 LOWER_R=-2
@@ -13,7 +13,7 @@ NB_THREADS=4
 LOADBALANCE=0
 MANDELBROT_COLOR=0
 GLUT=0
-MEASURE=1
+#MEASURE=1
 
 MEASURE_FLAG=$(if $(MEASURE),-DMEASURE,)
 DEBUG_FLAG=$(if $(DEBUG),-DDEBUG,)

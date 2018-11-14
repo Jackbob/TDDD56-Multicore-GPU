@@ -45,6 +45,22 @@
 #include "mandelbrot.h"
 #include "gl_mandelbrot.h"
 
+double timediff(struct timespec *begin, struct timespec *end)
+{
+    double sec = 0.0, nsec = 0.0;
+   if ((end->tv_nsec - begin->tv_nsec) < 0)
+   {
+      sec  = (double)(end->tv_sec  - begin->tv_sec  - 1);
+      nsec = (double)(end->tv_nsec - begin->tv_nsec + 1000000000);
+   } else
+   {
+      sec  = (double)(end->tv_sec  - begin->tv_sec );
+      nsec = (double)(end->tv_nsec - begin->tv_nsec);
+   }
+   return sec + nsec / 1E9;
+}
+
+
 int
 main(int argc, char ** argv)
 {
@@ -88,13 +104,16 @@ main(int argc, char ** argv)
     {
       printf("%i %li %li %li %li %li %li %li %li\n", i + 1, thread[i]->start.tv_sec, thread[i]->start.tv_nsec, thread[i]->stop.tv_sec, thread[i]->stop.tv_nsec, global.start.tv_sec, global.start.tv_nsec, global.stop.tv_sec, global.stop.tv_nsec);
     }
+    printf("Time: %f\n", timediff(&global.start, &global.stop));
 #else
   printf("0 %li %li %li %li %li %li %li %li\n", thread[0]->start.tv_sec, thread[0]->start.tv_nsec, thread[0]->stop.tv_sec, thread[0]->stop.tv_nsec, global.start.tv_sec, global.start.tv_nsec, global.stop.tv_sec, global.stop.tv_nsec);
+  printf("Time: %f\n", timediff(&global.start, &global.stop));
 #endif
 #endif
 
   // Final: deallocate structures
   destroy_mandelbrot(param);
+  
 
   return EXIT_SUCCESS;
 }

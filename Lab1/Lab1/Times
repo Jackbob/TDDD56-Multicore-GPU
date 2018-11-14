@@ -1,0 +1,40 @@
+
+With lb, 1 thread
+Time: 0.606622
+
+With lb, 2 threads
+Time: 0.318336
+
+With LB, 4 threads
+Time: 0.174408
+
+With LB, 8 threads
+Time: 0.106540
+
+With LB, 16 threads
+Time: 0.083876
+
+
+
+
+
+Without LB, 1 thread
+Time: 0.606644
+
+without lb, 2 threads
+Time: 0.318718
+
+Without LB, 4 threads
+Time: 0.263803
+
+Without LB, 8 threads
+Time: 0.213924
+
+Without LB, 16 threads
+Time: 0.148627
+
+
+
+With sequential
+Time: 0.605801
+

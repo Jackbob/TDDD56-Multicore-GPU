@@ -23,6 +23,8 @@
 
 color_t *color = NULL;
 
+pthread_mutex_t *mutex = PTHREAD_MUTEX_INITIALIZER;
+
 #if NB_THREADS > 0
 // Compiled only when several threads are used
 struct mandelbrot_thread
@@ -47,6 +49,8 @@ struct mandelbrot_timing sequential;
 #ifdef MEASURE
 struct mandelbrot_timing **timing;
 #endif
+
+_Bool rowlist[HEIGHT] = {0};
 
 struct mandelbrot_param mandelbrot_param;
 
@@ -92,7 +96,7 @@ compute_chunk(struct mandelbrot_param *args)
 	float Cim, Cre;
 	color_t pixel;
 
-	// Iterate hrough lines
+	// Iterate through lines
 	for (i = args->begin_h; i < args->end_h; i++)
 	{
 		// Iterate through pixels in a line
@@ -126,6 +130,7 @@ init_round(struct mandelbrot_thread *args)
 {
 	// Initialize or reinitialize here variables before any thread starts or restarts computation
 	// Every thread run this function; feel free to allow only one of them to do anything
+    
 }
 
 /*
@@ -150,28 +155,37 @@ parallel_mandelbrot(struct mandelbrot_thread *args, struct mandelbrot_param *par
 		// Entire width: from 0 to picture's width
 		parameters->begin_w = 0;
 		parameters->end_w = parameters->width;
-
+        
 		// Go
 		compute_chunk(parameters);
+        
 	//}
 #endif
 // Compiled only if LOADBALANCE = 1
 #if LOADBALANCE == 1
-	// Replace this code with your load-balanced smarter solution.
-	// Only thread of ID 0 compute the whole picture
-	if(args->id == 0)
-	{
-		// Define the region compute_chunk() has to compute
-		// Entire height: from 0 to picture's height
-		parameters->begin_h = 0;
-		parameters->end_h = parameters->height;
-		// Entire width: from 0 to picture's width
-		parameters->begin_w = 0;
-		parameters->end_w = parameters->width;
 
-		// Go
-		compute_chunk(parameters);
-	}
+    for(int r=args->id; r<parameters->height; r++){
+        
+            pthread_mutex_lock(mutex);
+        if(rowlist[r] == 0){
+            rowlist[r] = 1;
+            pthread_mutex_unlock(mutex);
+            // Define the region compute_chunk() has to compute
+            // Entire height: from 0 to picture's height
+            parameters->begin_h = r;
+            parameters->end_h = r+1;
+            // Entire width: from 0 to picture's width
+            parameters->begin_w = 0;
+            parameters->end_w = parameters->width;
+
+            // Go
+            compute_chunk(parameters);
+        }
+    }
+    
+    
+        
+    
 #endif
 // Compiled only if LOADBALANCE = 2
 #if LOADBALANCE == 2
