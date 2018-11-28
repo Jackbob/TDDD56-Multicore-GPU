@@ -64,6 +64,8 @@ stack_check(stack_t *stack)
 int /* Return the type you prefer */
 stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data)
 {
+    if(alloc_stack->head == NULL)
+        return 0;
 #if NON_BLOCKING == 0
   // Implement a lock_based stack
     pthread_mutex_lock(&stacklock);
@@ -78,7 +80,15 @@ stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data)
     pthread_mutex_unlock(&stacklock);
     
 #elif NON_BLOCKING == 1
-  // Implement a harware CAS-based stack
+    // Implement a hardware CAS-based stack
+    element_t* old_head = stack->head;
+    element_t* new_head = alloc_stack->head;
+    element_t* new_alloc_head = new_head->next;
+    
+    cas(&(stack->head), old_head, new_head);
+    
+    stack->head->next = old_head;
+    alloc_stack->head = new_alloc_head;
 #else
   /*** Optional ***/
   // Implement a software CAS-based stack
@@ -95,20 +105,30 @@ stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data)
 int /* Return the type you prefer */
 stack_pop(stack_t* stack, struct allocation_stack* alloc_stack)
 {
+    if(!stack->head)
+        return 0;
 #if NON_BLOCKING == 0
   // Implement a lock_based stack
     pthread_mutex_lock(&stacklock);
     element_t* old_head = stack->head;
-    element_t* alloc_head = alloc_stack->head;
+    element_t* old_alloc_head = alloc_stack->head;
     
     stack->head = old_head->next;
     
     alloc_stack->head = old_head;
-    alloc_stack->head->next = alloc_head;
+    alloc_stack->head->next = old_alloc_head;
     
     pthread_mutex_unlock(&stacklock);
 #elif NON_BLOCKING == 1
-  // Implement a harware CAS-based stack
+    // Implement a harware CAS-based stack
+    element_t* old_head = stack->head;
+    element_t* new_head = stack->head->next;
+    element_t* old_alloc_head = alloc_stack->head;
+    
+    cas(&(stack->head), old_head, new_head);
+    
+    alloc_stack->head = old_head;
+    alloc_stack->head->next = old_alloc_head;
 #else
   /*** Optional ***/
   // Implement a software CAS-based stack

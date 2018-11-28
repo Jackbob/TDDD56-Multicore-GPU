@@ -104,6 +104,7 @@ stack_measure_pop(void* arg)
     clock_gettime(CLOCK_MONOTONIC, &t_start[args->id]);
     for (i = 0; i < MAX_PUSH_POP / NB_THREADS; i++)
       {
+        stack_pop(stack, &alloc_stack[args->id]);
         // See how fast your implementation can pop MAX_PUSH_POP elements in parallel
       }
     clock_gettime(CLOCK_MONOTONIC, &t_stop[args->id]);
@@ -120,6 +121,7 @@ stack_measure_push(void* arg)
   clock_gettime(CLOCK_MONOTONIC, &t_start[args->id]);
   for (i = 0; i < MAX_PUSH_POP / NB_THREADS; i++)
     {
+        stack_push(stack, &alloc_stack[args->id], DATA_VALUE);
         // See how fast your implementation can push MAX_PUSH_POP elements in parallel
     }
   clock_gettime(CLOCK_MONOTONIC, &t_stop[args->id]);
@@ -130,6 +132,63 @@ stack_measure_push(void* arg)
 #endif
 
 /* A bunch of optional (but useful if implemented) unit tests for your stack */
+
+void 
+display_current()
+{
+    element_t* curr = stack->head;
+    printf("\n");
+    while(curr != NULL)
+    {
+        printf("%i ", curr->data);
+        curr = curr->next;
+    }
+    printf("\n");
+}
+
+void
+measure_1_init()
+{
+    // Initialize your test batch
+    data = DATA_VALUE;
+    // Allocate a new stack and reset its values
+    stack = malloc(sizeof(stack_t));
+    alloc_stack = malloc(sizeof(allocation_stack_t)*NB_THREADS);
+    
+    stack->head = malloc(sizeof(element_t));
+    element_t* curr = stack->head;
+    curr->data = DATA_VALUE;
+    
+    for( int i=0; i<MAX_PUSH_POP; ++i){
+        curr->next = malloc(sizeof(element_t));
+        curr = curr->next;
+        curr->data = DATA_VALUE;
+    }
+
+}
+
+void
+measure_2_init()
+{
+    // Initialize your test batch
+    data = DATA_VALUE;
+    // Allocate a new stack and reset its values
+    stack = malloc(sizeof(stack_t));
+    alloc_stack = malloc(sizeof(allocation_stack_t)*NB_THREADS);
+    
+    for( int t=0; t<NB_THREADS; ++t){
+        alloc_stack[t].head = malloc(sizeof(element_t));
+        element_t* curr = alloc_stack[t].head;
+    
+        for( int i=0; i<MAX_PUSH_POP/NB_THREADS; ++i){
+            curr->next = malloc(sizeof(element_t));
+            curr = curr->next;
+            curr->data = 0;
+        }
+    }
+
+}
+
 void
 test_init()
 {
@@ -143,8 +202,8 @@ test_init()
     
     
     for( int i=0; i<MAX_PUSH_POP; i++){
+        curr->next = malloc(sizeof(element_t));
         curr = curr->next;
-        curr = malloc(sizeof(element_t));
         curr->data = 0;
     }
 }
@@ -153,7 +212,11 @@ void
 test_setup()
 {
     // Allocate and initialize your test stack before each test
-    
+    stack_push(stack, alloc_stack, 1);
+    stack_push(stack, alloc_stack, 2);
+    stack_push(stack, alloc_stack, 3);
+    stack_push(stack, alloc_stack, 4);
+    stack_push(stack, alloc_stack, 5);
     // Reset explicitely all members to a well-known initial value
     // For instance (to be deleted as your stack design progresses):
 }
@@ -163,8 +226,7 @@ test_teardown()
 {
     // Do not forget to free your stacks after each test
     // to avoid memory leaks
-   
-    while(stack->head->next != NULL){
+    while(stack->head != NULL){
         stack_pop(stack, alloc_stack);
     }
      
@@ -200,22 +262,20 @@ test_finalize()
 int
 test_push_safe()
 {
-  // Make sure your stack remains in a good state with expected content when
-  // several threads push concurrently to it
+    // Make sure your stack remains in a good state with expected content when
+    // several threads push concurrently to it
 
-  // Do some work
-  stack_push(stack, alloc_stack, data);
-  
- 
-  // check if the stack is in a consistent state
-  //int res = assert(stack_check(stack));
- 
+    // Do some work
+    stack_push(stack, alloc_stack, data);
+    display_current();
+        
+    // check if the stack is in a consistent state
+    //int res = assert(stack_check(stack));
 
-
-  // check other properties expected after a push operation
-  // (this is to be updated as your stack design progresses)
-  // Now, the test succeeds
-  return assert(stack->head->data == data);
+    // check other properties expected after a push operation
+    // (this is to be updated as your stack design progresses)
+    // Now, the test succeeds
+    return assert(stack->head->data == data);
 
 }
 
@@ -223,12 +283,18 @@ int
 test_pop_safe()
 {
   // Same as the test above for parallel pop operation
+    
+    
     element_t* stack_head_removed = stack->head;
+    if(stack_head_removed == NULL)
+        return assert(stack->head == NULL);
     stack_pop(stack, alloc_stack);
     
+    display_current();
+    
     //int res = assert(stack_check(stack));
-
-  return assert(stack->head != stack_head_removed);
+    
+    return assert(stack->head != stack_head_removed);
 }
 
 // 3 Threads should be enough to raise and detect the ABA problem
@@ -352,6 +418,12 @@ setbuf(stdout, NULL);
   pthread_attr_t attr;
   stack_measure_arg_t arg[NB_THREADS];
   pthread_attr_init(&attr);
+  
+#if MEASURE==1
+  measure_1_init();
+#elif MEASURE==2
+  measure_2_init();
+#endif
 
   clock_gettime(CLOCK_MONOTONIC, &start);
   for (i = 0; i < NB_THREADS; i++)
@@ -370,6 +442,8 @@ setbuf(stdout, NULL);
       pthread_join(thread[i], NULL);
     }
   clock_gettime(CLOCK_MONOTONIC, &stop);
+  double time = timediff(&start, &stop);
+  printf("\nTotal time: %f\n", time);
   
   // Print out results
   for (i = 0; i < NB_THREADS; i++)
