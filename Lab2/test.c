@@ -83,6 +83,7 @@ assert_fun(int expr, const char *str, const char *file, const char* function, si
 
 stack_t *stack;
 allocation_stack_t* alloc_stack;
+allocation_stack_t* alloc_stack2;
 int data;
 
 #if MEASURE != 0
@@ -197,6 +198,7 @@ test_init()
     // Allocate a new stack and reset its values
     stack = malloc(sizeof(stack_t));
     alloc_stack = malloc(sizeof(allocation_stack_t));
+    alloc_stack2 = malloc(sizeof(allocation_stack_t));
     alloc_stack->head = malloc(sizeof(element_t));
     element_t* curr = alloc_stack->head;
     
@@ -300,6 +302,19 @@ test_pop_safe()
 // 3 Threads should be enough to raise and detect the ABA problem
 #define ABA_NB_THREADS 3test_setup();
   //test_teardown();
+  
+void* thread0 (void* arg){
+    display_current();
+    stack_pop_aba(stack, alloc_stack);
+    return NULL;
+}
+void* thread1 (void* arg){
+    stack_pop(stack, alloc_stack2);
+    stack_pop(stack, alloc_stack);
+    stack_push(stack, alloc_stack2, DATA_VALUE);
+    return NULL;
+}
+
 
 int
 test_aba()
@@ -307,6 +322,18 @@ test_aba()
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
   int success, aba_detected = 0;
   // Write here a test for the ABA problem
+  pthread_t thread[2];
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); 
+  pthread_create(&thread[0], &attr, thread0, NULL);
+  sleep(0.2);
+  pthread_create(&thread[1], &attr, thread1, NULL);
+  
+  pthread_join(thread[0], NULL);
+  pthread_join(thread[1], NULL);
+  
+  display_current();
   success = aba_detected;
   return success;
 #else
@@ -314,6 +341,7 @@ test_aba()
   return 1;
 #endif
 }
+
 
 // We test here the CAS function
 struct thread_test_cas_args
@@ -405,10 +433,13 @@ setbuf(stdout, NULL);
   
   //test_run(test_cas);
 
+  
   test_run(test_push_safe);
   
   test_run(test_pop_safe);
-  //test_run(test_aba);
+
+  test_run(test_aba);
+  //test_aba();
   
   test_finalize();
   

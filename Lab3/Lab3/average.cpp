@@ -82,6 +82,7 @@ int main(int argc, char* argv[])
 	skepu2::Matrix<unsigned char> outputMatrix(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	skepu2::Matrix<unsigned char> outputMatrix2(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	skepu2::Matrix<unsigned char> outputMatrix3(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
+    skepu2::Matrix<unsigned char> temp(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	// more containers...?
 	
 	// Original version
@@ -105,15 +106,18 @@ int main(int argc, char* argv[])
 	// and conv.setOverlap(<integer>)
 	{
 		auto conv = skepu2::MapOverlap(average_kernel_1d);
-		conv.setOverlapMode(skepu2::Overlap::RowColWise);
+		conv.setOverlapMode(skepu2::Overlap::RowWise);
 		conv.setOverlap(radius);
         conv.setEdgeMode(skepu2::Edge::Pad);
         conv.setPad(0);
 		conv.setBackend(spec);
+
+        skepu2::Matrix<unsigned char> outputMatrix(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
-			conv(outputMatrix2, inputMatrix, imageInfo.elementsPerPixel);
+			conv(temp, inputMatrix, imageInfo.elementsPerPixel);
+            
             
 		});
 		

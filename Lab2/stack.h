@@ -23,9 +23,15 @@
 
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #ifndef STACK_H
 #define STACK_H
+
+
+extern pthread_cond_t cond;
+extern pthread_cond_t mut;
+
 struct element{
     int data;
     struct element* next;
@@ -47,6 +53,7 @@ typedef struct element element_t;
 
 int stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data);
 int stack_pop(stack_t* stack, struct allocation_stack* alloc_stack);
+int stack_pop_aba(stack_t* stack, struct allocation_stack* alloc_stack);
 
 /* Use this to check if your stack is in a consistent state from time to time */
 int stack_check(stack_t *stack);

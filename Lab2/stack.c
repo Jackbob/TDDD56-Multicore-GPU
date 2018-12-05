@@ -83,6 +83,7 @@ stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data)
     // Implement a hardware CAS-based stack
     element_t* old_head = stack->head;
     element_t* new_head = alloc_stack->head;
+    new_head->data = new_data;
     element_t* new_alloc_head = new_head->next;
     
     cas(&(stack->head), old_head, new_head);
@@ -102,6 +103,7 @@ stack_push(stack_t* stack, struct allocation_stack* alloc_stack, int new_data)
   return 0;
 }
 
+
 int /* Return the type you prefer */
 stack_pop(stack_t* stack, struct allocation_stack* alloc_stack)
 {
@@ -120,7 +122,7 @@ stack_pop(stack_t* stack, struct allocation_stack* alloc_stack)
     
     pthread_mutex_unlock(&stacklock);
 #elif NON_BLOCKING == 1
-    // Implement a harware CAS-based stack
+    // Implement a hardware CAS-based stack
     element_t* old_head = stack->head;
     element_t* new_head = stack->head->next;
     element_t* old_alloc_head = alloc_stack->head;
@@ -137,3 +139,18 @@ stack_pop(stack_t* stack, struct allocation_stack* alloc_stack)
   return 0;
 }
 
+int /* Return the type you prefer */
+stack_pop_aba(stack_t* stack, struct allocation_stack* alloc_stack)
+{
+#if NON_BLOCKING == 1
+    // Implement a hardware CAS-based stack
+    element_t* old_head = stack->head;
+    element_t* new_head = stack->head->next;
+    element_t* old_alloc_head = alloc_stack->head;
+    sleep(2);
+    cas(&(stack->head), old_head, new_head);
+    
+    alloc_stack->head = old_head;
+    alloc_stack->head->next = old_alloc_head;
+#endif
+}

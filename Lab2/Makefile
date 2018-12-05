@@ -2,10 +2,10 @@ FILES=Makefile non_blocking.c non_blocking.h stack.c stack.h test.c test.h compi
 ARCHIVE=Lab2.zip
 
 NB_THREADS=4
-NON_BLOCKING=0
+NON_BLOCKING=1
 SUFFIX=
 MEASURE=0
-MAX_PUSH_POP=5000000
+MAX_PUSH_POP=50
 OUT=stack$(SUFFIX)
 DEBUG=0
 
