@@ -29,6 +29,9 @@ unsigned char average_kernel(int ox, int oy, size_t stride, const unsigned char 
 unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, size_t elemPerPx)
 {
 	// your code here
+	for(int step=-o; step < ; ++step){
+
+	}
 }
 
 
@@ -89,6 +92,8 @@ int main(int argc, char* argv[])
 	// and conv.setOverlap(<integer>)
 	{
 		auto conv = skepu2::MapOverlap(average_kernel_1d);
+		conv.setOverlapMode(skepu2::Overlap::RowWise);
+		conv.setOverlap(5);
 		conv.setBackend(spec);
 	
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]

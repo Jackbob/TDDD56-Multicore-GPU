@@ -14,13 +14,13 @@
 
 float dot_func(float element1, float element2)
 {
-			return element1 * element2;
+	return element1 * element2;
 }
 
 // more user functions...
 float plusfloat(float a, float b){
 
-		return a + b;
+	return a + b;
 }
 
 
@@ -39,14 +39,17 @@ int main(int argc, const char* argv[])
 
 
 	/* Skeleton instances */
-	auto dot_skepu = skepu2::MapReduce<2>(dot_func,plusfloat);
+	auto dot_skepu = skepu2::MapReduce<2>(dot_func, plusfloat);
+	auto dot_multstep = skepu2::Map<2>(dot_func);
+	auto dot_reducestep = skepu2::Reduce<>(plusfloat);
+
 // ...
 
 	/* Set backend (important, do for all instances!) */
 //	instance.setBackend(spec);
 
 	/* SkePU containers */
-	skepu2::Vector<float> v1(size, 1.0f), v2(size, 2.0f);
+	skepu2::Vector<float> result(size, 0.0f), v1(size, 1.0f), v2(size, 2.0f);
 
 
 
@@ -56,12 +59,13 @@ int main(int argc, const char* argv[])
 
 	auto timeComb = skepu2::benchmark::measureExecTime([&]
 	{
-			resComb = dot_skepu(v1,v2);
+		resComb = dot_skepu(v1,v2);
 	});
 
 	auto timeSep = skepu2::benchmark::measureExecTime([&]
 	{
-		// your code here
+		dot_multstep(result, v1, v2);
+		resSep = dot_reducestep(result);
 	});
 
 	std::cout << "Time Combined: " << (timeComb.count() / 10E6) << " seconds.\n";
