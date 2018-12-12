@@ -14,4 +14,26 @@
 	int e_per_row = (gridDim.x*blockDim.x);
 	int idx = row*e_per_row + col;
 
-2b) 
+2b) QUESTION: What happens if you use too many threads per block?
+    
+    Since it doesn't change compute time it seems like it automatically caps 
+    thread number to the maximum number of threads.
+
+    QUESTION: At what data size is the GPU faster than the CPU?
+
+    Breaking point seems to be around 2048x2048, with a good blocksize.
+
+    QUESTION: What block size seems like a good choice? Compared to what?
+
+    Around 64x64 seems like a good choice for this. Any more will not decrease computation time.
+    And less than that, such as 32x32, seems to slightly increase time. Compared to itself and CPU time.
+
+    QUESTION: Write down your data size, block size and timing data for the best GPU performance you can get.
+
+    Matrix: 16384x16384 
+    Blocksize: 64x64 
+    GPU compute time: 0.012480 
+    CPU compute time: 0.743688 
+
+3a) 
+
