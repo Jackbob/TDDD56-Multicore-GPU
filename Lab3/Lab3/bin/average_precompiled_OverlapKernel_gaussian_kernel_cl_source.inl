@@ -1,5 +1,5 @@
 
-class CLWrapperClass_average_precompiled_OverlapKernel_average_kernel_1d
+class CLWrapperClass_average_precompiled_OverlapKernel_gaussian_kernel
 {
 public:
 	
@@ -30,6 +30,11 @@ public:
 			return;
 		
 		std::string source = skepu2::backend::cl_helpers::replaceSizeT(R"###(
+typedef struct {
+	__global float *data;
+	size_t size;
+} skepu_vec_proxy_float;
+
 #define SKEPU_USING_BACKEND_CL 1
 
 typedef struct{
@@ -51,27 +56,30 @@ size_t get_device_id()
 #define VARIANT_OPENMP(block)
 #define VARIANT_CUDA(block)
 
-static unsigned char average_kernel_1d(int o, size_t stride, __local const unsigned char * m, size_t elemPerPx)
+static unsigned char gaussian_kernel(int o, size_t stride, __local const unsigned char * m, skepu_vec_proxy_float stencil, size_t elemPerPx)
 {
-	float scaling = 1.0 / (o/elemPerPx*2+1);
+	// your code here
+    float scaling = 0.0f;
     float res = 0.0f;
 	for(int step=-o; step <= o; step+=elemPerPx){
-        res += m[(int)stride*step];
+        res += m[(int)stride*step]*stencil.data[step+o];
+        scaling += stencil.data[step+o];
 	}
      
-    return res * scaling;
+    return res / scaling;
 }
 
 
-__kernel void average_precompiled_OverlapKernel_average_kernel_1d_Vector(
-	__global unsigned char* input, size_t elemPerPx,  __global unsigned char* output,
+__kernel void average_precompiled_OverlapKernel_gaussian_kernel_Vector(
+	__global unsigned char* input, __global skepu_vec_proxy_float *skepu_container_stencil, size_t skepu_size_stencil, size_t elemPerPx,  __global unsigned char* output,
 	__global unsigned char* wrap, size_t n, size_t overlap, size_t out_offset,
 	size_t out_numelements, int poly, unsigned char pad, __local unsigned char* sdata
 )
 {
 	size_t tid = get_local_id(0);
 	size_t i = get_group_id(0) * get_local_size(0) + get_local_id(0);
-	
+	skepu_vec_proxy_float stencil = { .data = skepu_container_stencil, .size = skepu_size_stencil };
+
 	
 	if (poly == 0)
 	{
@@ -110,11 +118,11 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_Vector(
 	barrier(CLK_LOCAL_MEM_FENCE);
 	
 	if (i >= out_offset && i < out_offset + out_numelements)
-		output[i - out_offset] = average_kernel_1d(overlap, 1, &sdata[tid + overlap] , elemPerPx);
+		output[i - out_offset] = gaussian_kernel(overlap, 1, &sdata[tid + overlap] , stencil, elemPerPx);
 }
 
-__kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatRowWise(
-	__global unsigned char* input, size_t elemPerPx,  __global unsigned char* output,
+__kernel void average_precompiled_OverlapKernel_gaussian_kernel_MatRowWise(
+	__global unsigned char* input, __global skepu_vec_proxy_float *skepu_container_stencil, size_t skepu_size_stencil, size_t elemPerPx,  __global unsigned char* output,
 	__global unsigned char* wrap, size_t n, size_t overlap, size_t out_offset, size_t out_numelements,
 	int poly, unsigned char pad, size_t blocksPerRow, size_t rowWidth, __local unsigned char* sdata
 )
@@ -124,7 +132,8 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatRowWise(
 	size_t wrapIndex= 2 * overlap * (int)(get_group_id(0) / blocksPerRow);
 	size_t tmp  = (get_group_id(0) % blocksPerRow);
 	size_t tmp2 = (get_group_id(0) / blocksPerRow);
-	
+	skepu_vec_proxy_float stencil = { .data = skepu_container_stencil, .size = skepu_size_stencil };
+
 	
 	if (poly == 0)
 	{
@@ -164,11 +173,11 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatRowWise(
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 	if ((i >= out_offset) && (i < out_offset+out_numelements))
-		output[i-out_offset] = average_kernel_1d(overlap, 1, &sdata[tid+overlap] , elemPerPx);
+		output[i-out_offset] = gaussian_kernel(overlap, 1, &sdata[tid+overlap] , stencil, elemPerPx);
 }
 
-__kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWise(
-	__global unsigned char* input, size_t elemPerPx,  __global unsigned char* output,
+__kernel void average_precompiled_OverlapKernel_gaussian_kernel_MatColWise(
+	__global unsigned char* input, __global skepu_vec_proxy_float *skepu_container_stencil, size_t skepu_size_stencil, size_t elemPerPx,  __global unsigned char* output,
 	__global unsigned char* wrap, size_t n, size_t overlap, size_t out_offset, size_t out_numelements,
 	int poly, unsigned char pad, size_t blocksPerCol, size_t rowWidth, size_t colWidth, __local unsigned char* sdata
 	)
@@ -179,7 +188,8 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWise(
 	size_t tmp= (get_group_id(0) % blocksPerCol);
 	size_t tmp2= (get_group_id(0) / blocksPerCol);
 	size_t arrInd = (tid + tmp*get_local_size(0))*rowWidth + tmp2;
-	
+	skepu_vec_proxy_float stencil = { .data = skepu_container_stencil, .size = skepu_size_stencil };
+
 	
 	if (poly == 0)
 	{
@@ -219,11 +229,11 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWise(
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 	if ((arrInd >= out_offset) && (arrInd < out_offset+out_numelements))
-		output[arrInd-out_offset] = average_kernel_1d(overlap, 1, &sdata[tid+overlap] , elemPerPx);
+		output[arrInd-out_offset] = gaussian_kernel(overlap, 1, &sdata[tid+overlap] , stencil, elemPerPx);
 }
 
-__kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMulti(
-	__global unsigned char* input, size_t elemPerPx,  __global unsigned char* output,
+__kernel void average_precompiled_OverlapKernel_gaussian_kernel_MatColWiseMulti(
+	__global unsigned char* input, __global skepu_vec_proxy_float *skepu_container_stencil, size_t skepu_size_stencil, size_t elemPerPx,  __global unsigned char* output,
 	__global unsigned char* wrap, size_t n, size_t overlap, size_t in_offset, size_t out_numelements,
 	int poly, int deviceType, unsigned char pad, size_t blocksPerCol, size_t rowWidth, size_t colWidth,
 	__local unsigned char* sdata
@@ -235,7 +245,8 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	size_t tmp  = (get_group_id(0) % blocksPerCol);
 	size_t tmp2 = (get_group_id(0) / blocksPerCol);
 	size_t arrInd = (tid + tmp*get_local_size(0))*rowWidth + tmp2;
-	
+	skepu_vec_proxy_float stencil = { .data = skepu_container_stencil, .size = skepu_size_stencil };
+
 	
 	if (poly == 0)
 	{
@@ -327,7 +338,7 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	
 	barrier(CLK_LOCAL_MEM_FENCE);
 	if (arrInd < out_numelements )
-		output[arrInd] = average_kernel_1d(overlap, 1, &sdata[tid+overlap] , elemPerPx);
+		output[arrInd] = gaussian_kernel(overlap, 1, &sdata[tid+overlap] , stencil, elemPerPx);
 }
 )###");
 		
@@ -337,17 +348,17 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 		{
 			cl_int err;
 			cl_program program = skepu2::backend::cl_helpers::buildProgram(device, source);
-			cl_kernel kernel_vector = clCreateKernel(program, "average_precompiled_OverlapKernel_average_kernel_1d_Vector", &err);
-			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D vector kernel '" << "average_precompiled_OverlapKernel_average_kernel_1d" << "'");
+			cl_kernel kernel_vector = clCreateKernel(program, "average_precompiled_OverlapKernel_gaussian_kernel_Vector", &err);
+			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D vector kernel '" << "average_precompiled_OverlapKernel_gaussian_kernel" << "'");
 			
-			cl_kernel kernel_matrix_row = clCreateKernel(program, "average_precompiled_OverlapKernel_average_kernel_1d_MatRowWise", &err);
-			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix row-wise kernel '" << "average_precompiled_OverlapKernel_average_kernel_1d" << "'");
+			cl_kernel kernel_matrix_row = clCreateKernel(program, "average_precompiled_OverlapKernel_gaussian_kernel_MatRowWise", &err);
+			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix row-wise kernel '" << "average_precompiled_OverlapKernel_gaussian_kernel" << "'");
 			
-			cl_kernel kernel_matrix_col = clCreateKernel(program, "average_precompiled_OverlapKernel_average_kernel_1d_MatColWise", &err);
-			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix col-wise kernel '" << "average_precompiled_OverlapKernel_average_kernel_1d" << "'");
+			cl_kernel kernel_matrix_col = clCreateKernel(program, "average_precompiled_OverlapKernel_gaussian_kernel_MatColWise", &err);
+			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix col-wise kernel '" << "average_precompiled_OverlapKernel_gaussian_kernel" << "'");
 			
-			cl_kernel kernel_matrix_col_multi = clCreateKernel(program, "average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMulti", &err);
-			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix col-wise multi kernel '" << "average_precompiled_OverlapKernel_average_kernel_1d" << "'");
+			cl_kernel kernel_matrix_col_multi = clCreateKernel(program, "average_precompiled_OverlapKernel_gaussian_kernel_MatColWiseMulti", &err);
+			CL_CHECK_ERROR(err, "Error creating MapOverlap 1D matrix col-wise multi kernel '" << "average_precompiled_OverlapKernel_gaussian_kernel" << "'");
 			
 			kernels(counter, KERNEL_VECTOR,           &kernel_vector);
 			kernels(counter, KERNEL_MATRIX_ROW,       &kernel_matrix_row);
@@ -362,16 +373,16 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	static void mapOverlapVector
 	(
 		size_t deviceID, size_t localSize, size_t globalSize,
-		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, size_t elemPerPx, 
+		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, std::tuple<skepu2::Vector<float> *, skepu2::backend::DeviceMemPointer_CL<float> *> skepu_container_stencil, size_t elemPerPx, 
 		skepu2::backend::DeviceMemPointer_CL<unsigned char> *output, skepu2::backend::DeviceMemPointer_CL<unsigned char> *wrap,
 		size_t n, size_t overlap, size_t out_offset, size_t out_numelements, int poly, unsigned char pad,
 		size_t sharedMemSize
 	)
 	{
 		cl_kernel kernel = kernels(deviceID, KERNEL_VECTOR);
-		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), elemPerPx,  output->getDeviceDataPointer(),
+		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), std::get<1>(skepu_container_stencil)->getDeviceDataPointer(), std::get<0>(skepu_container_stencil)->size(), elemPerPx,  output->getDeviceDataPointer(),
 			wrap->getDeviceDataPointer(), n, overlap, out_offset, out_numelements, poly, pad);
-		clSetKernelArg(kernel, 1 + 9, sharedMemSize, NULL);
+		clSetKernelArg(kernel, 3 + 9, sharedMemSize, NULL);
 		cl_int err = clEnqueueNDRangeKernel(skepu2::backend::Environment<int>::getInstance()->m_devices_CL.at(deviceID)->getQueue(), kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 		CL_CHECK_ERROR(err, "Error launching MapOverlap 1D vector kernel");
 	}
@@ -379,16 +390,16 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	static void mapOverlapMatrixRowWise
 	(
 		size_t deviceID, size_t localSize, size_t globalSize,
-		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, size_t elemPerPx, 
+		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, std::tuple<skepu2::Vector<float> *, skepu2::backend::DeviceMemPointer_CL<float> *> skepu_container_stencil, size_t elemPerPx, 
 		skepu2::backend::DeviceMemPointer_CL<unsigned char> *output, skepu2::backend::DeviceMemPointer_CL<unsigned char> *wrap,
 		size_t n, size_t overlap, size_t out_offset, size_t out_numelements, int poly, unsigned char pad, size_t blocksPerRow, size_t rowWidth,
 		size_t sharedMemSize
 	)
 	{
 		cl_kernel kernel = kernels(deviceID, KERNEL_MATRIX_ROW);
-		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), elemPerPx,  output->getDeviceDataPointer(),
+		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), std::get<1>(skepu_container_stencil)->getDeviceDataPointer(), std::get<0>(skepu_container_stencil)->size(), elemPerPx,  output->getDeviceDataPointer(),
 			wrap->getDeviceDataPointer(), n, overlap, out_offset, out_numelements, poly, pad, blocksPerRow, rowWidth);
-		clSetKernelArg(kernel, 1 + 11, sharedMemSize, NULL);
+		clSetKernelArg(kernel, 3 + 11, sharedMemSize, NULL);
 		cl_int err = clEnqueueNDRangeKernel(skepu2::backend::Environment<int>::getInstance()->m_devices_CL.at(deviceID)->getQueue(),
 			kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 		CL_CHECK_ERROR(err, "Error launching MapOverlap 1D matrix row-wise kernel");
@@ -397,16 +408,16 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	static void mapOverlapMatrixColWise
 	(
 		size_t deviceID, size_t localSize, size_t globalSize,
-		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, size_t elemPerPx, 
+		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, std::tuple<skepu2::Vector<float> *, skepu2::backend::DeviceMemPointer_CL<float> *> skepu_container_stencil, size_t elemPerPx, 
 		skepu2::backend::DeviceMemPointer_CL<unsigned char> *output, skepu2::backend::DeviceMemPointer_CL<unsigned char> *wrap,
 		size_t n, size_t overlap, size_t out_offset, size_t out_numelements, int poly, unsigned char pad, size_t blocksPerCol, size_t rowWidth, size_t colWidth,
 		size_t sharedMemSize
 	)
 	{
 		cl_kernel kernel = kernels(deviceID, KERNEL_MATRIX_COL);
-		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), elemPerPx,  output->getDeviceDataPointer(),
+		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), std::get<1>(skepu_container_stencil)->getDeviceDataPointer(), std::get<0>(skepu_container_stencil)->size(), elemPerPx,  output->getDeviceDataPointer(),
 			wrap->getDeviceDataPointer(), n, overlap, out_offset, out_numelements, poly, pad, blocksPerCol, rowWidth, colWidth);
-		clSetKernelArg(kernel, 1 + 12, sharedMemSize, NULL);
+		clSetKernelArg(kernel, 3 + 12, sharedMemSize, NULL);
 		cl_int err = clEnqueueNDRangeKernel(skepu2::backend::Environment<int>::getInstance()->m_devices_CL.at(deviceID)->getQueue(),
 			kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 		CL_CHECK_ERROR(err, "Error launching MapOverlap 1D matrix col-wise kernel");
@@ -415,16 +426,16 @@ __kernel void average_precompiled_OverlapKernel_average_kernel_1d_MatColWiseMult
 	static void mapOverlapMatrixColWiseMulti
 	(
 		size_t deviceID, size_t localSize, size_t globalSize,
-		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, size_t elemPerPx, 
+		skepu2::backend::DeviceMemPointer_CL<unsigned char> *input, std::tuple<skepu2::Vector<float> *, skepu2::backend::DeviceMemPointer_CL<float> *> skepu_container_stencil, size_t elemPerPx, 
 		skepu2::backend::DeviceMemPointer_CL<unsigned char> *output, skepu2::backend::DeviceMemPointer_CL<unsigned char> *wrap,
 		size_t n, size_t overlap, size_t in_offset, size_t out_numelements, int poly, int deviceType, unsigned char pad, size_t blocksPerCol, size_t rowWidth, size_t colWidth,
 		size_t sharedMemSize
 	)
 	{
 		cl_kernel kernel = kernels(deviceID, KERNEL_MATRIX_COL_MULTI);
-		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), elemPerPx,  output->getDeviceDataPointer(),
+		skepu2::backend::cl_helpers::setKernelArgs(kernel, input->getDeviceDataPointer(), std::get<1>(skepu_container_stencil)->getDeviceDataPointer(), std::get<0>(skepu_container_stencil)->size(), elemPerPx,  output->getDeviceDataPointer(),
 			wrap->getDeviceDataPointer(), n, overlap, in_offset, out_numelements, poly, deviceType, pad, blocksPerCol, rowWidth, colWidth);
-		clSetKernelArg(kernel, 1 + 13, sharedMemSize, NULL);
+		clSetKernelArg(kernel, 3 + 13, sharedMemSize, NULL);
 		cl_int err = clEnqueueNDRangeKernel(skepu2::backend::Environment<int>::getInstance()->m_devices_CL.at(deviceID)->getQueue(),
 			kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 		CL_CHECK_ERROR(err, "Error launching MapOverlap 1D matrix col-wise multi kernel");

@@ -29,6 +29,26 @@
 unsigned char median_kernel(int ox, int oy, size_t stride, const unsigned char *image, size_t elemPerPx)
 {
 	// your code here
+    int n_pxvalues[256] = {0};
+    int totalpx = ox * oy;
+    int current_pxcount = 0;
+    
+
+    for (int y = -oy; y <= oy; ++y)
+		for (int x = -ox; x <= ox; x += elemPerPx)
+			++n_pxvalues[image[y*(int)stride+x]];
+
+    int prevpx = 0;
+    for(int i=0; i<256; ++i){
+        current_pxcount += n_pxvalues[i];
+        if(current_pxcount > totalpx/2)
+            return (prevpx != 0) ? (i+prevpx)/2 : i;
+
+        prevpx = (n_pxvalues[i] != 0) ? i : prevpx;
+            
+    }
+
+    return 0;
 }
 struct skepu2_userfunction_calculateMedian_median_kernel
 {
@@ -54,6 +74,26 @@ constexpr static bool prefersMatrix = 0;
 static inline SKEPU_ATTRIBUTE_FORCE_INLINE unsigned char OMP(int ox, int oy, size_t stride, const unsigned char *image, size_t elemPerPx)
 {
 	// your code here
+    int n_pxvalues[256] = {0};
+    int totalpx = ox * oy;
+    int current_pxcount = 0;
+    
+
+    for (int y = -oy; y <= oy; ++y)
+		for (int x = -ox; x <= ox; x += elemPerPx)
+			++n_pxvalues[image[y*(int)stride+x]];
+
+    int prevpx = 0;
+    for(int i=0; i<256; ++i){
+        current_pxcount += n_pxvalues[i];
+        if(current_pxcount > totalpx/2)
+            return (prevpx != 0) ? (i+prevpx)/2 : i;
+
+        prevpx = (n_pxvalues[i] != 0) ? i : prevpx;
+            
+    }
+
+    return 0;
 }
 #undef SKEPU_USING_BACKEND_OMP
 
@@ -67,6 +107,26 @@ static inline SKEPU_ATTRIBUTE_FORCE_INLINE unsigned char OMP(int ox, int oy, siz
 static inline SKEPU_ATTRIBUTE_FORCE_INLINE unsigned char CPU(int ox, int oy, size_t stride, const unsigned char *image, size_t elemPerPx)
 {
 	// your code here
+    int n_pxvalues[256] = {0};
+    int totalpx = ox * oy;
+    int current_pxcount = 0;
+    
+
+    for (int y = -oy; y <= oy; ++y)
+		for (int x = -ox; x <= ox; x += elemPerPx)
+			++n_pxvalues[image[y*(int)stride+x]];
+
+    int prevpx = 0;
+    for(int i=0; i<256; ++i){
+        current_pxcount += n_pxvalues[i];
+        if(current_pxcount > totalpx/2)
+            return (prevpx != 0) ? (i+prevpx)/2 : i;
+
+        prevpx = (n_pxvalues[i] != 0) ? i : prevpx;
+            
+    }
+
+    return 0;
 }
 #undef SKEPU_USING_BACKEND_CPU
 };
@@ -106,7 +166,7 @@ int main(int argc, char* argv[])
 	// Skeleton instance
 	skepu2::backend::MapOverlap2D<skepu2_userfunction_calculateMedian_median_kernel, bool, CLWrapperClass_median_precompiled_Overlap2DKernel_median_kernel> calculateMedian(false);
 	calculateMedian.setBackend(spec);
-	calculateMedian.setOverlap(radius, radius  * imageInfo.elementsPerPixel);
+	calculateMedian.setOverlap(radius, radius*imageInfo.elementsPerPixel);
 	
 	auto timeTaken = skepu2::benchmark::measureExecTime([&]
 	{

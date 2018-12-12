@@ -243,8 +243,6 @@ int main(int argc, const char* argv[])
 	skepu2::Vector<float> result(size, 0.0f), v1(size, 1.0f), v2(size, 2.0f);
 
 
-
-
 	/* Compute and measure time */
 	float resComb, resSep;
 

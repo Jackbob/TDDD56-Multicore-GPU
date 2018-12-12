@@ -27,7 +27,7 @@ void add_matrix(float *a, float *b, float *result)
 	int row = (blockIdx.y * blockDim.y + threadIdx.y);
 	int col = (blockIdx.x * blockDim.x + threadIdx.x);
 	int e_per_row = (gridDim.x*blockDim.x);
-	int idx = col*e_per_row + row;
+	int idx = row*e_per_row + col;
 	result[idx] = a[idx] + b[idx];
 }
 
@@ -62,8 +62,8 @@ int main()
 
 	/* Second part, matrix and cuda event*/
 	float *gpu_result, *gpu_ma, *gpu_mb;
-	float* result = new float[N*N];
-    float* cpuresult = new float[N*N];
+	float *result = new float[N*N];
+    float *cpuresult = new float[N*N];
 	float *ma = new float[N*N];
 	float *mb = new float[N*N];
 	const int matrixsize = N*N*sizeof(float);

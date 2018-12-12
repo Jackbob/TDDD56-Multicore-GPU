@@ -33,7 +33,7 @@ unsigned char median_kernel(int ox, int oy, size_t stride, const unsigned char *
     for(int i=0; i<256; ++i){
         current_pxcount += n_pxvalues[i];
         if(current_pxcount > totalpx/2)
-            return (prevpx != 0) ? (i+prevpx)*0.5 : i;
+            return (prevpx != 0) ? (i+prevpx)/2 : i;
 
         prevpx = (n_pxvalues[i] != 0) ? i : prevpx;
             
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 	// Skeleton instance
 	auto calculateMedian = skepu2::MapOverlap(median_kernel);
 	calculateMedian.setBackend(spec);
-	calculateMedian.setOverlap(radius, radius  * imageInfo.elementsPerPixel);
+	calculateMedian.setOverlap(radius, radius*imageInfo.elementsPerPixel);
 	
 	auto timeTaken = skepu2::benchmark::measureExecTime([&]
 	{

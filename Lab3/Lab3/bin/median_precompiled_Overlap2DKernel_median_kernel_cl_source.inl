@@ -45,6 +45,26 @@ size_t get_device_id()
 static unsigned char median_kernel(int ox, int oy, size_t stride, __local const unsigned char * image, size_t elemPerPx)
 {
 	// your code here
+    int n_pxvalues[256] = {0};
+    int totalpx = ox * oy;
+    int current_pxcount = 0;
+    
+
+    for (int y = -oy; y <= oy; ++y)
+		for (int x = -ox; x <= ox; x += elemPerPx)
+			++n_pxvalues[image[y*(int)stride+x]];
+
+    int prevpx = 0;
+    for(int i=0; i<256; ++i){
+        current_pxcount += n_pxvalues[i];
+        if(current_pxcount > totalpx/2)
+            return (prevpx != 0) ? (i+prevpx)/2 : i;
+
+        prevpx = (n_pxvalues[i] != 0) ? i : prevpx;
+            
+    }
+
+    return 0;
 }
 
 
